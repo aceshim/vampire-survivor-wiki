@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="ko" data-root="{{ROOT}}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>오프라인 공략</title>
+<meta name="theme-color" content="#14161c">
+<link rel="manifest" href="{{ROOT}}manifest.webmanifest">
+<link rel="apple-touch-icon" href="{{ROOT}}apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="stylesheet" href="{{ROOT}}app.css">
+</head>
+<body class="home-page">
+<header class="top">
+  <span class="home">📚</span>
+  <div class="crumb"><span class="book">오프라인 공략</span><span class="page">빌드 {{BUILT_AT}}</span></div>
+  <span class="offline-pill" id="offlinePill" title="오프라인 캐시 상태">…</span>
+</header>
+<main class="article">
+  <div class="drawer-head">
+    <input type="search" id="searchBox" placeholder="문서·섹션 검색" autocomplete="off">
+  </div>
+  <ul class="results" id="results" hidden></ul>
+  <p class="hint" id="installHint">홈 화면에 추가하면 비행기 모드에서도 전부 열립니다. 상단 배지가 <b>오프라인 OK</b>가 될 때까지 온라인 상태로 두세요.</p>
+  {{BOOKS}}
+</main>
+<script src="{{ROOT}}app.js"></script>
+</body>
+</html>

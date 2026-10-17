@@ -1,0 +1,20 @@
+{
+  "name": "offline-wiki",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Scrape namu.wiki game guides into an installable offline PWA",
+  "scripts": {
+    "scrape": "node scraper/scrape.mjs",
+    "build": "node scraper/build.mjs",
+    "serve": "node scraper/serve.mjs docs 8090",
+    "all": "npm run scrape && npm run build",
+    "test": "node test/run.mjs"
+  },
+  "dependencies": {
+    "playwright": "^1.56.1"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

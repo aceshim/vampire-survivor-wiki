@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="ko" data-root="{{ROOT}}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>{{SHORT_TITLE}} · {{BOOK_TITLE}}</title>
+<meta name="theme-color" content="#14161c">
+<link rel="manifest" href="{{ROOT}}manifest.webmanifest">
+<link rel="apple-touch-icon" href="{{ROOT}}apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="stylesheet" href="{{ROOT}}app.css">
+</head>
+<body>
+<header class="top">
+  <button class="icon-btn" id="menuBtn" aria-label="메뉴">☰</button>
+  <a class="home" href="{{ROOT}}index.html">{{BOOK_EMOJI}}</a>
+  <div class="crumb"><span class="book">{{BOOK_TITLE}}</span><span class="page">{{SHORT_TITLE}}</span></div>
+  <button class="icon-btn" id="tocBtn" aria-label="목차">≡</button>
+  <span class="offline-pill" id="offlinePill" title="오프라인 캐시 상태">…</span>
+</header>
+
+<nav class="drawer" id="drawer" hidden>
+  <div class="drawer-head">
+    <input type="search" id="searchBox" placeholder="문서·섹션 검색" autocomplete="off">
+    <button class="icon-btn" id="closeDrawer" aria-label="닫기">✕</button>
+  </div>
+  <ul class="results" id="results" hidden></ul>
+  <ul class="pagelist" id="pageList">
+    <li class="home-link"><a href="{{ROOT}}index.html">🏠 전체 목록</a></li>
+    {{NAV}}
+  </ul>
+</nav>
+
+<aside class="toc-panel" id="tocPanel" hidden>
+  <div class="drawer-head"><strong>목차</strong><button class="icon-btn" id="closeToc" aria-label="닫기">✕</button></div>
+  <ul class="toc">{{TOC}}</ul>
+</aside>
+
+<main class="article">
+  <h1 class="title">{{TITLE}}</h1>
+  <div class="wiki-content">
+{{CONTENT}}
+  </div>
+  <footer class="source">출처: <a href="{{SOURCE_URL}}" target="_blank" rel="noopener">{{SOURCE_URL}}</a> · 저장일 {{FETCHED_AT}} · CC BY-NC-SA 2.0 KR</footer>
+</main>
+<div class="scrim" id="scrim" hidden></div>
+<script src="{{ROOT}}app.js"></script>
+</body>
+</html>

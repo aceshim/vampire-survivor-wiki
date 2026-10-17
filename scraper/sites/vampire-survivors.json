@@ -1,0 +1,26 @@
+{
+  "id": "vs",
+  "title": "Vampire Survivors",
+  "emoji": "🧄",
+  "base": "https://namu.wiki",
+  "seeds": [
+    "/w/Vampire Survivors",
+    "/w/Vampire Survivors/아르카나",
+    "/w/Vampire Survivors/캐릭터",
+    "/w/Vampire Survivors/무기",
+    "/w/Vampire Survivors/패시브 아이템",
+    "/w/Vampire Survivors/스테이지",
+    "/w/Vampire Survivors/적",
+    "/w/Vampire Survivors/업적",
+    "/w/Vampire Survivors/비밀",
+    "/w/Vampire Survivors/파워업",
+    "/w/Vampire Survivors/DLC",
+    "/w/Vampire Survivors/유물",
+    "/w/Vampire Survivors/팁",
+    "/w/Vampire Survivors/공략"
+  ],
+  "include": ["^/w/Vampire Survivors(/|$)"],
+  "exclude": ["^/w/Vampire Survivors/(역사|틀)"],
+  "maxPages": 200,
+  "delayMs": 1500
+}

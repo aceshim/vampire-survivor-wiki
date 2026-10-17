@@ -1,0 +1,15 @@
+{
+  "id": "hgss",
+  "title": "포켓몬스터 하트골드·소울실버",
+  "emoji": "🔥",
+  "enabled": false,
+  "base": "https://namu.wiki",
+  "seeds": [
+    "/w/포켓몬스터 하트골드·소울실버",
+    "/w/포켓몬스터 하트골드·소울실버/공략"
+  ],
+  "include": ["^/w/포켓몬스터 하트골드·소울실버(/|$)"],
+  "exclude": [],
+  "maxPages": 150,
+  "delayMs": 1500
+}
