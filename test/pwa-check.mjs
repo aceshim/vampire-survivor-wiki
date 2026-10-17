@@ -15,7 +15,8 @@ const context = await browser.newContext({ viewport: { width: 420, height: 860 }
 const page = await context.newPage();
 const errors = [];
 page.on('pageerror', (e) => errors.push(String(e)));
-page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
+page.on('console', (m) => { if (m.type() === 'error' && !/ERR_INTERNET_DISCONNECTED/.test(m.text())) errors.push(m.text()); });
+page.on('response', (r) => { if (r.status() >= 400 && r.url().startsWith(base)) errors.push(`${r.status()} ${r.url()}`); });
 let ok = true;
 const check = (cond, msg) => { console.log(`${cond ? 'PASS' : 'FAIL'} ${msg}`); if (!cond) ok = false; };
 
@@ -41,17 +42,22 @@ try {
     await page.goto(target + '#s-3.7');
     const imgs = await page.$$eval('.wiki-content img', (els) => els.map((i) => i.naturalWidth));
     check(imgs.length > 0 && imgs.every((w) => w > 0), `images render offline (${imgs.length})`);
-    check(await page.$eval('details.wiki-folding', (d) => d.open), 'folded block is open');
+    const folds = await page.$$eval('.wiki-content details', (ds) => ({ n: ds.length, open: ds.filter((d) => d.open).length }));
+    check(folds.n === folds.open, `folded blocks open (${folds.open}/${folds.n})`);
     const near = await page.evaluate(() => { const r = document.getElementById('s-3.7').getBoundingClientRect(); return location.hash === '#s-3.7' && r.top >= 0 && r.top < innerHeight; });
     check(near, 'deep link #s-3.7 scrolled into view');
     await page.screenshot({ path: path.join(ROOT, 'test', 'shot-page.png'), fullPage: true });
   }
   // Search works offline.
+  const idx = await page.evaluate(async () => (await (await fetch('../search.json')).json()));
+  const entry = idx.find((e) => e.headings.length) || idx[0];
+  const term = entry.headings.length ? entry.headings[Math.floor(entry.headings.length / 2)].text.replace(/^[\d.]+\s*/, '') : entry.short;
+  check(idx.every((e) => e.headings.length > 0), `every page has a section index (${idx.reduce((n, e) => n + e.headings.length, 0)} sections)`);
   await page.click('#menuBtn');
-  await page.fill('#searchBox', 'heart');
+  await page.fill('#searchBox', term.slice(0, 6));
   await page.waitForSelector('#results li');
   const hits = await page.$$eval('#results li a', (as) => as.map((a) => a.textContent));
-  check(hits.some((h) => /Heart of Fire/.test(h)), `search hit offline: ${hits[0]}`);
+  check(hits.some((h) => h.includes(term.slice(0, 6))), `search hit offline for "${term.slice(0, 6)}": ${hits[0]}`);
   check(errors.length === 0, `no console errors${errors.length ? ': ' + errors.join(' | ') : ''}`);
 } finally {
   await browser.close();

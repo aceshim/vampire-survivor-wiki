@@ -32,6 +32,13 @@ npm run serve               # http://127.0.0.1:8090 로 확인
 iOS는 홈 화면에 설치한 앱의 캐시는 지우지 않는다(일반 Safari 탭은 7일 미사용 시 삭제될 수 있음).
 탑승 전 한 번 온라인으로 열어 배지가 초록인지 확인하는 게 안전하다.
 
+## 2.5. 생성 페이지 (치트시트)
+
+`scraper/extras/*.mjs` 는 긁어온 문서에서 데이터를 뽑아 별도 페이지를 만든다.
+현재: `vs-evolution` → **진화 조합표** (무기 + 장신구 = 진화, 아이콘 그리드). 사이트 설정의 `"extras": ["vs-evolution"]` 로 켠다.
+
+원본 `data/`가 없는 환경(다른 PC)에서는 `node scraper/rehydrate.mjs` 로 `docs/`에서 `data/raw/`를 복원한 뒤 `npm run build` 하면 된다.
+
 ## 3. 다른 게임 추가 (예: 하트골드)
 
 `scraper/sites/<game>.json` 하나 추가:
@@ -57,7 +64,10 @@ iOS는 홈 화면에 설치한 앱의 캐시는 지우지 않는다(일반 Safar
 
 ```
 scraper/scrape.mjs     Playwright 크롤러: 본문 추출·정리, 이미지 다운로드, 내부 링크 → wiki:// 플레이스홀더
-scraper/build.mjs      docs/ 생성: 링크 해석(리다이렉트 별칭 포함), 템플릿, 검색 색인, SW 프리캐시 목록
+scraper/clean.mjs      본문 정리(DOM 구조 기반: 광고/플레이스홀더/빈 줄 제거, 접기 펼침, 목차·섹션 색인) — scrape/build 공용
+scraper/build.mjs      docs/ 생성: 정리 → 링크 해석(리다이렉트 별칭 포함) → extras → 템플릿, 검색 색인, SW 프리캐시 목록
+scraper/rehydrate.mjs  docs/ → data/raw/ 복원 (재크롤 없이 재빌드)
+scraper/extras/        생성 페이지 (진화 조합표 등)
 scraper/app/           PWA 셸(템플릿, CSS/JS, 서비스워커, manifest, 아이콘)
 scraper/sites/*.json   책(book) 설정
 test/fixture/          가짜 나무위키 서버 (npm test 용)
@@ -66,6 +76,6 @@ test/pwa-check.mjs     SW 설치 → 오프라인 전환 → 전 문서 열림·
 
 테스트: `npm test` (fixture 서버로 크롤 → 빌드 → 헤드리스 오프라인 검증).
 
-나무위키 본문 DOM이 바뀌어 추출이 비면 `--debug` 로 전체 HTML을 `data/raw/<site>/debug/`에 떨궈 셀렉터(`extractInBrowser`)를 맞추면 된다.
+나무위키는 클래스명을 난독화하므로 정리 로직은 구조(번호 헤딩 `a[id^=s-]`, 빈 줄 div, `<details>`)만 본다. 추출이 비면 `--debug` 로 전체 HTML을 `data/raw/<site>/debug/`에 떨궈 `scraper/clean.mjs`를 맞추면 된다.
 
 라이선스: 긁어온 본문은 나무위키 CC BY-NC-SA 2.0 KR. 개인 열람용.

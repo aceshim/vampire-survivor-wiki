@@ -19,8 +19,15 @@
     "/w/Vampire Survivors/팁",
     "/w/Vampire Survivors/공략"
   ],
-  "include": ["^/w/Vampire Survivors(/|$)"],
-  "exclude": ["^/w/Vampire Survivors/(역사|틀)"],
+  "include": [
+    "^/w/Vampire Survivors(/|$)"
+  ],
+  "exclude": [
+    "^/w/Vampire Survivors/(역사|틀)"
+  ],
   "maxPages": 200,
-  "delayMs": 1500
+  "delayMs": 1500,
+  "extras": [
+    "vs-evolution"
+  ]
 }

@@ -18,6 +18,7 @@ import fssync from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
+import { cleanArticle } from './clean.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const args = parseArgs(process.argv.slice(2));
@@ -173,6 +174,9 @@ async function fetchArticle(page, url, site) {
   await autoScroll(page);
 
   const data = await page.evaluate(extractInBrowser);
+  const cleaned = await page.evaluate(cleanArticle, { rootSelector: '.wiki-content, article, main' });
+  data.html = cleaned.html;
+  data.headings = cleaned.headings;
   if (!data.html || data.html.length < 200) throw new Error('empty article extracted');
 
   if (args.debug) {
@@ -183,7 +187,7 @@ async function fetchArticle(page, url, site) {
   return data;
 }
 
-// Runs inside the browser. Must be self-contained.
+// Runs inside the browser. Must be self-contained (cleanArticle runs in a second evaluate).
 function extractInBrowser() {
   const decodePath = (href) => {
     try {
@@ -192,109 +196,31 @@ function extractInBrowser() {
       return decodeURIComponent(u.pathname).replace(/\/+$/, '');
     } catch { return null; }
   };
-
-  const headings = Array.from(document.querySelectorAll('.wiki-heading'));
-  let root = document.querySelector('.wiki-content');
-  if (!root && headings.length) {
-    root = headings[0];
-    while (root && !headings.every((h) => root.contains(h))) root = root.parentElement;
-  }
-  if (!root) root = document.querySelector('article') || document.querySelector('main') || document.body;
-  root = root.cloneNode(true);
-
-  // Strip chrome, scripts, ads, edit links.
-  root.querySelectorAll('script, style, iframe, noscript, link, button, ins, svg, [aria-hidden="true"] > svg')
-    .forEach((n) => n.remove());
-  root.querySelectorAll('a[href^="/edit/"], a[href^="/history/"], a[href^="/discuss/"], a[href^="/raw/"], a[href^="/backlink/"], .wiki-edit-section')
-    .forEach((n) => n.remove());
-  // Headings: unwrap the "[편집]" tokens that sometimes remain as text.
-  root.querySelectorAll('.wiki-heading').forEach((h) => {
-    h.querySelectorAll('span, a').forEach((s) => {
-      if (/^\s*\[편집\]\s*$/.test(s.textContent)) s.remove();
-    });
-  });
-
-  // Folded blocks -> <details>, visible by default via CSS.
-  root.querySelectorAll('dl.wiki-folding').forEach((dl) => {
-    const dt = dl.querySelector('dt');
-    const dd = dl.querySelector('dd');
-    const d = document.createElement('details');
-    d.className = 'wiki-folding';
-    const s = document.createElement('summary');
-    s.innerHTML = dt ? dt.innerHTML : '펼치기';
-    d.appendChild(s);
-    const body = document.createElement('div');
-    body.className = 'wiki-folding-text';
-    body.innerHTML = dd ? dd.innerHTML : '';
-    d.appendChild(body);
-    dl.replaceWith(d);
-  });
-
-  // Remove display:none that JS would normally toggle (folded sections).
-  root.querySelectorAll('[style]').forEach((el) => {
-    const st = el.getAttribute('style') || '';
-    if (/display\s*:\s*none/i.test(st)) {
-      const cleaned = st.replace(/display\s*:\s*none\s*;?/gi, '').trim();
-      if (cleaned) el.setAttribute('style', cleaned); else el.removeAttribute('style');
-    }
-  });
-
   // Images: resolve lazy sources to absolute URLs, drop srcset.
   const images = new Set();
-  root.querySelectorAll('img, source, video').forEach((img) => {
+  document.querySelectorAll('img, source, video').forEach((img) => {
     const raw = img.getAttribute('data-src') || img.getAttribute('data-lazy-src') || img.getAttribute('src');
-    img.removeAttribute('srcset');
-    img.removeAttribute('data-srcset');
-    img.removeAttribute('loading');
+    img.removeAttribute('srcset'); img.removeAttribute('data-srcset'); img.removeAttribute('loading');
     if (!raw || raw.startsWith('data:')) return;
-    let abs;
-    try { abs = new URL(raw, location.href).href; } catch { return; }
-    img.setAttribute('src', abs);
-    img.removeAttribute('data-src');
-    img.removeAttribute('data-lazy-src');
+    let abs; try { abs = new URL(raw, location.href).href; } catch { return; }
+    img.setAttribute('src', abs); img.removeAttribute('data-src'); img.removeAttribute('data-lazy-src');
     images.add(abs);
   });
-
-  // Links: internal wiki links -> wiki://<path>#hash placeholders; others kept.
+  // Links: internal wiki links -> wiki://<path>#hash placeholders; others absolute.
   const links = new Set();
-  root.querySelectorAll('a[href]').forEach((a) => {
+  document.querySelectorAll('a[href]').forEach((a) => {
     const href = a.getAttribute('href');
     if (href.startsWith('#')) return;
     const p = decodePath(href);
     if (p && p.startsWith('/w/')) {
-      let hash = '';
-      try { hash = new URL(href, location.href).hash; } catch {}
-      a.setAttribute('href', 'wiki://' + p + hash);
-      links.add(p);
-      return;
+      let hash = ''; try { hash = new URL(href, location.href).hash; } catch {}
+      a.setAttribute('href', 'wiki://' + p + hash); links.add(p); return;
     }
-    try {
-      const abs = new URL(href, location.href).href;
-      a.setAttribute('href', abs);
-      a.setAttribute('target', '_blank');
-      a.setAttribute('rel', 'noopener');
-    } catch {}
+    try { const abs = new URL(href, location.href).href; a.setAttribute('href', abs); a.setAttribute('target', '_blank'); a.setAttribute('rel', 'noopener'); } catch {}
   });
-
-  // Section index for search / TOC.
-  const sections = Array.from(root.querySelectorAll('.wiki-heading')).map((h) => {
-    const idEl = h.querySelector('[id]') || h;
-    const level = Number((h.tagName.match(/\d/) || [2])[0]);
-    const text = h.textContent.replace(/\s+/g, ' ').trim();
-    return { id: idEl.id || '', level, text };
-  });
-
   const title = (document.querySelector('h1')?.textContent || document.title)
     .replace(/\s*-\s*나무위키\s*$/, '').replace(/\s+/g, ' ').trim();
-
-  return {
-    title,
-    finalPath: decodePath(location.href),
-    html: root.innerHTML,
-    images: Array.from(images),
-    links: Array.from(links),
-    headings: sections,
-  };
+  return { title, finalPath: decodePath(location.href), images: Array.from(images), links: Array.from(links) };
 }
 
 async function autoScroll(page) {

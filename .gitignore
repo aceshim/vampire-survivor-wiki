@@ -1,4 +1,4 @@
-node_modules/
+node_modules
 .pw-profile/
 data/raw/*/debug/
 .DS_Store

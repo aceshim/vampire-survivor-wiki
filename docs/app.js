@@ -61,5 +61,13 @@
       render(out);
     });
   }
+  // namu tables carry a dark-mode style variant; apply it when the page is dark.
+  const dark = matchMedia('(prefers-color-scheme: dark)');
+  const applyDark = () => document.querySelectorAll('[data-dark-style]').forEach((el) => {
+    if (!el.dataset.lightStyle) el.dataset.lightStyle = el.getAttribute('style') || '';
+    el.setAttribute('style', dark.matches ? el.dataset.darkStyle : el.dataset.lightStyle);
+  });
+  applyDark(); dark.addEventListener('change', applyDark);
+
   function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
 })();

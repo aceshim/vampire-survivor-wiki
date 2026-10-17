@@ -6,6 +6,8 @@ import fssync from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
+import { chromium } from 'playwright';
+import { cleanArticle } from './clean.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const RAW = path.join(ROOT, 'data', 'raw');
@@ -50,6 +52,8 @@ for (const b of books) {
   }
 }
 
+const browser = await chromium.launch();
+const cleaner = await browser.newPage();
 await fs.rm(OUT, { recursive: true, force: true });
 await fs.mkdir(OUT, { recursive: true });
 await fs.writeFile(path.join(OUT, '.nojekyll'), '');
@@ -70,11 +74,13 @@ for (const b of books) {
     }
   }
 
-  const navHtml = b.pages.map((p) =>
-    `<li data-depth="${depth(p.path, b.site)}"><a href="./${enc(p.slug)}.html">${esc(p.shortTitle)}</a></li>`).join('\n');
-
+  // 1. Clean every page in a headless browser, resolve links.
   for (const p of b.pages) {
     let html = await fs.readFile(path.join(b.dir, `${p.slug}.html`), 'utf8');
+    await cleaner.setContent(`<!doctype html><html><body><div id="__root">${html}</div></body></html>`);
+    const cleaned = await cleaner.evaluate(cleanArticle, { rootSelector: '#__root' });
+    html = cleaned.html;
+    p.headings = cleaned.headings;
     html = html.replace(/href="wiki:\/\/([^"#]+)(#[^"]*)?"/g, (_, rawPath, hash = '') => {
       const wikiPath = unescapeHtml(rawPath);
       const t = index.get(wikiPath);
@@ -85,12 +91,36 @@ for (const b of books) {
       const online = b.site.base.replace(/\/$/, '') + wikiPath.split('/').map(encodeURIComponent).join('/') + hash;
       return `href="${online}" data-online="1" title="오프라인 사본 없음 (온라인 전용)" target="_blank" rel="noopener"`;
     });
-    // Folded blocks open by default so nothing is hidden on a plane.
-    html = html.replace(/<details class="wiki-folding">/g, '<details class="wiki-folding" open>');
+    p.html = html;
+  }
 
+  // 2. Extra generated pages (cheat sheets etc.), parsed from a cleaned source page.
+  const extras = [];
+  for (const name of b.site.extras || []) {
+    const mod = await import(`./extras/${name}.mjs`);
+    const src = b.pages.find((p) => p.slug === mod.sourceSlug);
+    if (!src) { console.warn(`extra ${name}: source page ${mod.sourceSlug} not found`); continue; }
+    await cleaner.setContent(`<!doctype html><html><body>${src.html}</body></html>`);
+    const data = await cleaner.evaluate(mod.extract);
+    const rendered = mod.render(data, { esc });
+    extras.push({
+      slug: mod.slug, shortTitle: mod.title, title: `${b.site.title} · ${mod.title}`, path: `/extra/${mod.slug}`,
+      html: rendered.html, headings: rendered.headings, url: src.url, fetchedAt: src.fetchedAt, extra: true,
+    });
+    const n = data.sections?.reduce((k, s) => k + s.recipes.length + s.subs.reduce((j, x) => j + x.recipes.length, 0), 0);
+    console.log(`  extra ${name}: ${n ?? '?'} entries`);
+  }
+
+  // 3. Navigation (extras pinned on top) and page output.
+  const navHtml = [
+    ...extras.map((e) => `<li class="extra"><a href="./${enc(e.slug)}.html">⚡ ${esc(e.shortTitle)}</a></li>`),
+    ...b.pages.map((p) => `<li data-depth="${depth(p.path, b.site)}"><a href="./${enc(p.slug)}.html">${esc(p.shortTitle)}</a></li>`),
+  ].join('\n');
+  b.extras = extras;
+
+  for (const p of [...extras, ...b.pages]) {
     const toc = p.headings.filter((h) => h.id).map((h) =>
       `<li data-level="${h.level}"><a href="#${esc(h.id)}">${esc(h.text)}</a></li>`).join('\n');
-
     const out = fill(pageTpl, {
       ROOT: '../',
       SITE_ID: b.site.id,
@@ -100,7 +130,7 @@ for (const b of books) {
       SHORT_TITLE: esc(p.shortTitle),
       NAV: navHtml,
       TOC: toc,
-      CONTENT: html,
+      CONTENT: p.html,
       SOURCE_URL: esc(p.url),
       FETCHED_AT: esc(p.fetchedAt.slice(0, 10)),
     });
@@ -119,6 +149,7 @@ const booksHtml = books.map((b) => `
   <section class="book">
     <h2>${b.site.emoji || '📖'} ${esc(b.site.title)} <small>${b.pages.length}개 문서</small></h2>
     <ul class="pagelist">
+      ${(b.extras || []).map((e) => `<li class="extra"><a href="./${b.site.id}/${enc(e.slug)}.html">⚡ ${esc(e.shortTitle)}</a></li>`).join('\n')}
       ${b.pages.map((p) => `<li data-depth="${depth(p.path, b.site)}"><a href="./${b.site.id}/${enc(p.slug)}.html">${esc(p.shortTitle)}</a></li>`).join('\n')}
     </ul>
   </section>`).join('\n');
@@ -140,6 +171,7 @@ const sw = (await fs.readFile(path.join(ASSETS, 'sw.js'), 'utf8'))
   .replace('__PRECACHE__', JSON.stringify(list));
 await fs.writeFile(path.join(OUT, 'sw.js'), sw);
 console.log(`built docs/ — ${list.length} files precached, version ${version}`);
+await browser.close();
 
 // ---------------------------------------------------------------------------
 
