@@ -66,13 +66,6 @@ const homeTpl = await fs.readFile(path.join(ASSETS, 'index.html'), 'utf8');
 for (const b of books) {
   const siteOut = path.join(OUT, b.site.id);
   await fs.mkdir(path.join(siteOut, 'img'), { recursive: true });
-  const imgSrc = path.join(b.dir, 'img');
-  if (fssync.existsSync(imgSrc)) {
-    for (const f of await fs.readdir(imgSrc)) {
-      await fs.copyFile(path.join(imgSrc, f), path.join(siteOut, 'img', f));
-      precache.add(`./${b.site.id}/img/${encodeURIComponent(f)}`);
-    }
-  }
 
   // 1. Clean every page in a headless browser, resolve links.
   for (const p of b.pages) {
@@ -141,7 +134,20 @@ for (const b of books) {
       headings: p.headings.filter((h) => h.id).map((h) => ({ id: h.id, text: h.text })),
     });
   }
-  console.log(`${b.site.title}: ${b.pages.length} pages`);
+  // 4. Images: copy only what the output pages reference (drops site logos, license badges, leftovers).
+  const imgSrc = path.join(b.dir, 'img');
+  const referenced = new Set();
+  for (const p of [...extras, ...b.pages]) for (const m of p.html.matchAll(/src="img\/([^"]+)"/g)) referenced.add(decodeURIComponent(m[1]));
+  let copied = 0;
+  if (fssync.existsSync(imgSrc)) {
+    for (const f of await fs.readdir(imgSrc)) {
+      if (!referenced.has(f)) continue;
+      await fs.copyFile(path.join(imgSrc, f), path.join(siteOut, 'img', f));
+      precache.add(`./${b.site.id}/img/${encodeURIComponent(f)}`);
+      copied++;
+    }
+  }
+  console.log(`${b.site.title}: ${b.pages.length} pages, ${copied} images`);
 }
 
 // Home page.

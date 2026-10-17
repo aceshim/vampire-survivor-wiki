@@ -78,4 +78,4 @@ test/pwa-check.mjs     SW 설치 → 오프라인 전환 → 전 문서 열림·
 
 나무위키는 클래스명을 난독화하므로 정리 로직은 구조(번호 헤딩 `a[id^=s-]`, 빈 줄 div, `<details>`)만 본다. 추출이 비면 `--debug` 로 전체 HTML을 `data/raw/<site>/debug/`에 떨궈 `scraper/clean.mjs`를 맞추면 된다.
 
-라이선스: 긁어온 본문은 나무위키 CC BY-NC-SA 2.0 KR. 개인 열람용.
+라이선스: 코드 MIT · 본문 CC BY-NC-SA 2.0 KR(나무위키 기여자) · 게임 이미지 © 각 게임사. 자세한 내용은 `LICENSE.md`. 비상업 개인 열람용이며 광고·수익화 금지.
